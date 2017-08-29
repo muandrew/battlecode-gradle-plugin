@@ -1,9 +1,26 @@
+// Handle uploading to the battlecode maven repo with a credentials file
+buildscript {
+    repositories { jcenter() }
+    dependencies { classpath 'com.amazonaws:aws-java-sdk-core:1.11.5' }
+}
+
+// amu
+plugins {
+    id 'com.jfrog.bintray' version '1.7.3'
+}
+
 // Apply the groovy plugin to add support for Groovy
 apply plugin: 'groovy'
 apply plugin: 'maven-publish'
 
 group = 'org.battlecode'
 version = '2017.0.0.7'
+
+// amu
+group = 'com.muandrew.battlecode'
+def siteUrl = 'https://github.com/muandrew/battlecode-gradle-plugin'
+def gitUrl = 'https://github.com/muandrew/battlecode-gradle-plugin.git'
+def publishVersion = version
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -29,12 +46,6 @@ dependencies {
 
 }
 
-// Handle uploading to the battlecode maven repo with a credentials file
-buildscript {
-    repositories { jcenter() }
-    dependencies { classpath 'com.amazonaws:aws-java-sdk-core:1.11.5' }
-}
-
 import com.amazonaws.auth.*
 import com.amazonaws.auth.profile.*
 
@@ -48,10 +59,50 @@ def fetchAwsCredentials = {
     }
 }
 
+// amu
+task javadocJar(type: Jar, dependsOn: groovydoc) {
+    classifier = 'javadoc'
+    from 'build/docs/javadoc'
+}
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
 publishing {
     publications {
         plugin(MavenPublication) {
             from components.java
+
+            // amu
+            artifact sourcesJar
+            artifact javadocJar
+            artifactId 'battlecode-gradle-plugin'
+        }
+    }
+}
+
+//amu
+bintray {
+    user = System.getenv('BINTRAY_USER')
+    key = System.getenv('BINTRAY_KEY')
+    publications = ['plugin']
+    dryRun = false
+    publish = true
+    pkg {
+        repo = 'maven'
+        name = 'battlecode-gradle-plugin'
+        desc = 'Useful battlecode tasks! (In theory.)'
+        websiteUrl = siteUrl
+        issueTrackerUrl = siteUrl + '/issues'
+        vcsUrl = gitUrl
+        licenses = ['AGPL-V3']
+        labels = ['battlecode']
+        publicDownloadNumbers = true
+        version {
+            name = publishVersion
+            released = new java.text.SimpleDateFormat('yyyy-MM-dd\'T\'HH:mm:ss.SSSZZ').format(new Date())
+            vcsTag = 'v' + publishVersion
         }
     }
 }
